@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مواقيت الصلاة - جراتس | Graz Prayer Times</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            800: '#065f46',
+                            900: '#064e3b',
+                            950: '#022c22',
+                        },
+                        gold: {
+                            400: '#facc15',
+                            500: '#eab308',
+                            600: '#ca8a04',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Tajawal', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Google Fonts (Tajawal) -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            transition: background-color 0.5s ease;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(234, 179, 8, 0.4);
+            transform: translateY(-2px);
+        }
+        .active-prayer {
+            background: linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(6, 78, 59, 0.4) 100%);
+            border: 2px solid #eab308 !important;
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-slate-900">
+
+    <!-- Background Silhouette Gradient overlay -->
+    <div class="fixed inset-0 bg-gradient-to-b from-slate-950/80 via-slate-900/90 to-emerald-950/90 -z-10"></div>
+
+    <!-- 1. HEADER SECTION -->
+    <header class="w-full border-b border-slate-800/80 glass-panel sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
+            <!-- Brand & City Location -->
+            <div class="flex items-center space-x-3 space-x-reverse">
+                <div class="w-10 h-10 rounded-full bg-gold-500/20 border border-gold-500/50 flex items-center justify-center text-gold-400 text-lg">
+                    <i class="fa-solid fa-mosque"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-lg leading-tight flex items-center gap-2">
+                        جراتس <span class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded border border-slate-700">Graz, Austria 🇦🇹</span>
+                    </h1>
+                    <p class="text-xs text-slate-400" id="current-weather">جاري تحميل الطقس...</p>
+                </div>
+            </div>
+
+            <!-- Date Information -->
+            <div class="text-center md:text-right">
+                <div class="text-sm font-semibold text-gold-400" id="hijri-date">جاري التحميل...</div>
+                <div class="text-xs text-slate-400" id="gregorian-date">-- ---- ----</div>
+            </div>
+
+            <!-- Controls & Mode Selector -->
+            <div class="flex items-center gap-2">
+                <select id="calc-method" onchange="fetchPrayerTimes()" class="bg-slate-900 text-xs text-slate-300 border border-slate-700 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-gold-500">
+                    <option value="3" selected>المجلس الأوروبي للإفتاء (MWL/Europe)</option>
+                    <option value="5">الهيئة العامة للمساحة بمصر</option>
+                    <option value="4">أم القرى (مكة المكرمة)</option>
+                </select>
+                <button onclick="toggleAudio()" id="audio-btn" class="p-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-gold-400 transition" title="تشغيل/كتم الصوت">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-7xl mx-auto px-4 py-6 w-full space-y-8">
+
+        <!-- 2. HERO SECTION: NEXT PRAYER COUNTDOWN -->
+        <section class="glass-panel rounded-3xl p-6 md:p-8 text-center relative overflow-hidden border border-gold-500/30">
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-gold-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <span class="inline-block px-3 py-1 rounded-full bg-gold-500/10 text-gold-400 text-xs font-semibold mb-3 border border-gold-500/20">
+                الصلاة القادمة
+            </span>
+            <h2 class="text-3xl md:text-5xl font-black text-white mb-2" id="next-prayer-name">--</h2>
+            
+            <!-- Countdown Timer -->
+            <div class="my-4 flex justify-center items-center gap-3 dir-ltr text-slate-100" id="countdown-container">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-2 min-w-[70px]">
+                    <span class="text-2xl md:text-4xl font-bold font-mono text-gold-400" id="cd-hours">00</span>
+                    <span class="block text-[10px] text-slate-400 uppercase font-sans">ساعة</span>
+                </div>
+                <span class="text-2xl font-bold text-slate-600">:</span>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-2 min-w-[70px]">
+                    <span class="text-2xl md:text-4xl font-bold font-mono text-gold-400" id="cd-minutes">00</span>
+                    <span class="block text-[10px] text-slate-400 uppercase font-sans">دقيقة</span>
+                </div>
+                <span class="text-2xl font-bold text-slate-600">:</span>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl px-4 py-2 min-w-[70px]">
+                    <span class="text-2xl md:text-4xl font-bold font-mono text-gold-400" id="cd-seconds">00</span>
+                    <span class="block text-[10px] text-slate-400 uppercase font-sans">ثانية</span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="max-w-md mx-auto w-full bg-slate-800/80 rounded-full h-2 mt-4 overflow-hidden border border-slate-700">
+                <div id="prayer-progress" class="bg-gradient-to-r from-emerald-500 to-gold-400 h-2 rounded-full transition-all duration-1000" style="width: 0%"></div>
+            </div>
+            <p class="text-xs text-slate-400 mt-2" id="time-remaining-text">جاري احتساب الوقت المتبقي...</p>
+        </section>
+
+        <!-- 3. DAILY PRAYER TIMES GRID -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
+            <!-- Fajr -->
+            <div id="card-fajr" class="glass-card rounded-2xl p-4 text-center">
+                <i class="fa-solid fa-cloud-moon text-slate-400 mb-2 text-xl"></i>
+                <h3 class="text-xs text-slate-400 font-medium">الفجر</h3>
+                <div class="text-xl md:text-2xl font-bold my-1 text-slate-100" id="time-fajr">--:--</div>
+                <span class="text-[10px] text-slate-500 block">الإمساك: <span id="time-imsak">--:--</span></span>
+            </div>
+            <!-- Sunrise -->
+            <div id="card-sunrise" class="glass-card rounded-2xl p-4 text-center">
+                <i class="fa-solid fa-sun-plant-wilt text-slate-400 mb-2 text-xl"></i>
+                <h3 class="text-xs text-slate-400 font-medium">الشروق</h3>
+                <div class="text-xl md:text-2xl font-bold my-1 text-slate-100" id="time-sunrise">--:--</div>
+                <span class="text-[10px] text-slate-500 block">الشروق بـ جراتس</span>
+            </div>
+            <!-- Dhuhr -->
+            <div id="card-dhuhr" class="glass-card rounded-2xl p-4 text-center">
+                <i class="fa-solid fa-sun text-slate-400 mb-2 text-xl"></i>
+                <h3 class="text-xs text-slate-400 font-medium">الظهر</h3>
+                <div class="text-xl md:text-2xl font-bold my-1 text-slate-100" id="time-dhuhr">--:--</div>
+                <span class="text-[10px] text-slate-500 block">منتصف النهار</span>
+            </div>
+            <!-- Asr -->
+            <div id="card-asr" class="glass-card rounded-2xl p-4 text-center">
+                <i class="fa-solid fa-cloud-sun text-slate-400 mb-2 text-xl"></i>
+                <h3 class="text-xs text-slate-400 font-medium">العصر</h3>
+                <div class="text-xl md:text-2xl font-bold my-1 text-slate-100" id="time-asr">--:--</div>
+                <span class="text-[10px] text-slate-500 block">ظلال المساء</span>
+            </div>
+            <!-- Maghrib -->
+            <div id="card-maghrib" class="glass-card rounded-2xl p-4 text-center">
+                <i class="fa-solid fa-moon-cloud text-slate-400 mb-2 text-xl"></i>
+                <h3 class="text-xs text-slate-400 font-medium">المغرب (الإفطار)</h3>
+                <div class="text-xl md:text-2xl font-bold my-1 text-slate-100" id="time-maghrib">--:--</div>
+                <span class="text-[10px] text-slate-500 block">موعد الإفطار</span>
+            </div>
+            <!-- Isha -->
+            <div id="card-isha" class="glass-card rounded-2xl p-4 text-center">
+                <i class="fa-solid fa-moon text-slate-400 mb-2 text-xl"></i>
+                <h3 class="text-xs text-slate-400 font-medium">العشاء</h3>
+                <div class="text-xl md:text-2xl font-bold my-1 text-slate-100" id="time-isha">--:--</div>
+                <span class="text-[10px] text-slate-500 block">التراويح (رمضان)</span>
+            </div>
+        </section>
+
+        <!-- 4. LOCAL SERVICES & SPECIAL TOOLS (GRAZ SPECIFIC) -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- Qibla Finder -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-compass text-gold-400"></i> اتجاه القبلة من جراتس
+                        </h3>
+                        <span class="text-xs text-gold-400 font-bold">136.2° SE</span>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                        الزاوية الدقيقة باتجاه الكعبة المشرفة من مدينة جراتس، النمسا.
+                    </p>
+                </div>
+                <div class="flex justify-center my-2">
+                    <div class="relative w-24 h-24 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center">
+                        <i class="fa-solid fa-location-arrow text-3xl text-gold-400 transform -rotate-[44deg]"></i>
+                        <span class="absolute top-1 text-[10px] text-slate-500 font-bold">ش</span>
+                        <span class="absolute bottom-1 text-[10px] text-slate-500 font-bold">ج</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graz Mosque Finder -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-map-location-dot text-emerald-400"></i> مساجد جراتس الرئيسية
+                        </h3>
+                    </div>
+                    <ul class="space-y-2 text-xs text-slate-300">
+                        <li class="flex justify-between items-center p-2 rounded bg-slate-900/50 border border-slate-800">
+                            <span>المركز الثقافي الإسلامي (IKZ Graz)</span>
+                            <a href="https://maps.google.com/?q=Islamisches+Kulturzentrum+Graz" target="_blank" class="text-gold-400 hover:underline"><i class="fa-solid fa-directions"></i></a>
+                        </li>
+                        <li class="flex justify-between items-center p-2 rounded bg-slate-900/50 border border-slate-800">
+                            <span>مسجد السلام (Taqwa / As-Salam)</span>
+                            <a href="https://maps.google.com/?q=Mosque+Graz" target="_blank" class="text-gold-400 hover:underline"><i class="fa-solid fa-directions"></i></a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400">
+                    💡 وقت الإقامة عادة بعد الأذان بـ 15 دقيقة.
+                </div>
+            </div>
+
+            <!-- Daily Azkar / Ramadan Corner -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-col justify-between bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40">
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-slate-200 flex items-center gap-2">
+                            <i class="fa-solid fa-book-open-reader text-gold-400"></i> دعاء اليوم & رمضان
+                        </h3>
+                        <span class="text-[10px] bg-emerald-900/60 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-700">تفاعلي</span>
+                    </div>
+                    <blockquote class="text-xs text-slate-300 italic leading-relaxed my-2" id="daily-quote">
+                        "اللَّهُمَّ إِنِّي أَسْأَلُكَ عِلْمًا نَافِعًا، وَرِزْقًا طَيِّبًا، وَعَمَلًا مُتَقَبَّلًا"
+                    </blockquote>
+                </div>
+                <div class="mt-4 pt-3 border-t border-slate-800/80 flex justify-between items-center">
+                    <span class="text-[11px] text-slate-400">رمضان / الأعياد</span>
+                    <button onclick="downloadPDF()" class="text-xs bg-gold-500/10 hover:bg-gold-500/20 text-gold-400 border border-gold-500/30 px-3 py-1 rounded-lg transition">
+                        <i class="fa-solid fa-file-pdf ml-1"></i> تحميل الإمساكية (PDF)
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- 5. EID & SPECIAL EVENTS BANNER (Dynamic Toggle Example) -->
+        <section class="glass-panel rounded-2xl p-4 border border-gold-500/20 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-gold-500/10 via-slate-900 to-emerald-900/20">
+            <div class="flex items-center gap-3">
+                <div class="text-2xl text-gold-400"><i class="fa-solid fa-kaaba"></i></div>
+                <div>
+                    <h4 class="text-sm font-bold text-slate-200">دليل صلاة العيد والأضاحي في مقاطعة شتايرمارك</h4>
+                    <p class="text-xs text-slate-400">مواعيد الصلاة في قاعات ومصليات جراتس وحساب زكاة الفطر باليورو (€)</p>
+                </div>
+            </div>
+            <button onclick="alert('سيتم تفعيل دليل العيد وزكاة الفطر فور الإعلان الرسمي لثبوت العيد في النمسا.')" class="text-xs bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold px-4 py-2 rounded-xl transition">
+                عرض التفاصيل
+            </button>
+        </section>
+
+    </main>
+
+    <!-- 6. FOOTER -->
+    <footer class="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500 glass-panel mt-8">
+        <p>مواقيت الصلاة لمدينة جراتس، النمسا (Graz - Austria) © 2026 | مصممة بتقنيات الويب الحديثة</p>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Coordinates for Graz, Austria
+        const GRAZ_LAT = 47.0707;
+        const GRAZ_LNG = 15.4395;
+
+        let prayerTimesData = null;
+        let countdownInterval = null;
+
+        // Fetch Real-time Prayer Times from Aladhan API
+        async function fetchPrayerTimes() {
+            const method = document.getElementById('calc-method').value;
+            try {
+                const response = await fetch(`https://api.aladhan.com/v1/timings?latitude=${GRAZ_LAT}&longitude=${GRAZ_LNG}&method=${method}`);
+                const data = await response.json();
+                
+                if(data.code === 200) {
+                    prayerTimesData = data.data.timings;
+                    updateUI(data.data);
+                    startCountdown();
+                }
+            } catch (error) {
+                console.error("Error fetching prayer times:", error);
+                document.getElementById('next-prayer-name').innerText = "خطأ في الاتصال";
+            }
+        }
+
+        // Fetch Weather Data for Graz
+        async function fetchWeather() {
+            try {
+                const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${GRAZ_LAT}&longitude=${GRAZ_LNG}&current_weather=true`);
+                const data = await res.json();
+                if(data.current_weather) {
+                    document.getElementById('current-weather').innerText = `الطقس: ${data.current_weather.temperature}°C`;
+                }
+            } catch(e) {
+                document.getElementById('current-weather').innerText = `جراتس، النمسا`;
+            }
+        }
+
+        // Update UI Elements
+        function updateUI(data) {
+            const timings = data.timings;
+            const date = data.date;
+
+            // Dates
+            document.getElementById('hijri-date').innerText = `${date.hijri.day} ${date.hijri.month.ar} ${date.hijri.year} هـ`;
+            document.getElementById('gregorian-date').innerText = `${date.readable}`;
+
+            // Prayer Grid
+            document.getElementById('time-fajr').innerText = timings.Fajr;
+            document.getElementById('time-imsak').innerText = timings.Imsak || timings.Fajr;
+            document.getElementById('time-sunrise').innerText = timings.Sunrise;
+            document.getElementById('time-dhuhr').innerText = timings.Dhuhr;
+            document.getElementById('time-asr').innerText = timings.Asr;
+            document.getElementById('time-maghrib').innerText = timings.Maghrib;
+            document.getElementById('time-isha').innerText = timings.Isha;
+        }
+
+        // Countdown Logic
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+            const prayerNamesAr = {
+                'Fajr': 'الفجر',
+                'Dhuhr': 'الظهر',
+                'Asr': 'العصر',
+                'Maghrib': 'المغرب',
+                'Isha': 'العشاء'
+            };
+
+            countdownInterval = setInterval(() => {
+                const now = new Date();
+                let nextPrayerTime = null;
+                let nextPrayerName = '';
+
+                // Find Next Prayer
+                for (let p of prayers) {
+                    const [hours, minutes] = prayerTimesData[p].split(':');
+                    const pDate = new Date();
+                    pDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+                    if (pDate > now) {
+                        nextPrayerTime = pDate;
+                        nextPrayerName = prayerNamesAr[p];
+                        highlightCard(p);
+                        break;
+                    }
+                }
+
+                // If all prayers passed today, next is Fajr tomorrow
+                if (!nextPrayerTime) {
+                    const [hours, minutes] = prayerTimesData['Fajr'].split(':');
+                    nextPrayerTime = new Date();
+                    nextPrayerTime.setDate(nextPrayerTime.getDate() + 1);
+                    nextPrayerTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                    nextPrayerName = prayerNamesAr['Fajr'];
+                    highlightCard('Fajr');
+                }
+
+                // Calculate Diff
+                const diff = nextPrayerTime - now;
+                const hrs = Math.floor(diff / (1000 * 60 * 60));
+                const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                // Update Display
+                document.getElementById('next-prayer-name').innerText = nextPrayerName;
+                document.getElementById('cd-hours').innerText = String(hrs).padStart(2, '0');
+                document.getElementById('cd-minutes').innerText = String(mins).padStart(2, '0');
+                document.getElementById('cd-seconds').innerText = String(secs).padStart(2, '0');
+                document.getElementById('time-remaining-text').innerText = `متبقي على أذان ${nextPrayerName} في جراتس`;
+
+                // Progress Bar (Simple representation)
+                const totalSecs = 6 * 3600; // approximate gap
+                const remainingSecs = Math.floor(diff / 1000);
+                const progressPct = Math.max(0, Math.min(100, 100 - (remainingSecs / totalSecs * 100)));
+                document.getElementById('prayer-progress').style.width = `${progressPct}%`;
+
+            }, 1000);
+        }
+
+        // Highlight Current Active Prayer Card
+        function highlightCard(prayerKey) {
+            const keys = ['fajr', 'sunrise', 'dhuhr', 'asr', 'maghrib', 'isha'];
+            keys.forEach(k => {
+                const el = document.getElementById(`card-${k}`);
+                if(el) el.classList.remove('active-prayer');
+            });
+
+            const activeEl = document.getElementById(`card-${prayerKey.toLowerCase()}`);
+            if(activeEl) activeEl.classList.add('active-prayer');
+        }
+
+        // Dummy Audio & Helper Actions
+        let isMuted = false;
+        function toggleAudio() {
+            isMuted = !isMuted;
+            const btn = document.getElementById('audio-btn');
+            btn.innerHTML = isMuted ? '<i class="fa-solid fa-volume-xmark text-red-400"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+        }
+
+        function downloadPDF() {
+            alert('سيتم تنزيل إمساكية شهر رمضان المبارك لمدينة جراتس بفرمت PDF.');
+        }
+
+        // Init
+        fetchPrayerTimes();
+        fetchWeather();
+    </script>
+</body>
+</html>
